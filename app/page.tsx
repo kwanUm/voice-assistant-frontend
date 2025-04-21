@@ -15,23 +15,40 @@ import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { Room, RoomEvent } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
-import type { ConnectionDetails } from "./api/connection-details/route";
+import type { ConnectionDetails, RoomInfo, RoomList } from "./api/connection-details/route";
 
 export default function Page() {
   const [room] = useState(new Room());
+  const [availableRooms, setAvailableRooms] = useState<RoomInfo[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<string>("");
+  const [customRoom, setCustomRoom] = useState<string>("");
+  const [showRoomSelection, setShowRoomSelection] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onConnectButtonClicked = useCallback(async () => {
-    // Generate room connection details, including:
-    //   - A random Room name
-    //   - A random Participant name
-    //   - An Access Token to permit the participant to join the room
-    //   - The URL of the LiveKit server to connect to
-    //
-    // In real-world application, you would likely allow the user to specify their
-    // own participant name, and possibly to choose from existing rooms to join.
+  const fetchAvailableRooms = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const url = new URL(
+        `${process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details"}?list=true`,
+        window.location.origin
+      );
+      const response = await fetch(url.toString());
+      const roomsData: RoomList = await response.json();
+      setAvailableRooms(roomsData.rooms);
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
+  const connectToRoom = useCallback(async () => {
+    const roomToJoin = selectedRoom || customRoom;
+    console.log("roomToJoin", roomToJoin);
+    const roomParam = roomToJoin ? `?room=${encodeURIComponent(roomToJoin)}` : "";
+    
     const url = new URL(
-      process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details",
+      `${process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details"}${roomParam}`,
       window.location.origin
     );
     const response = await fetch(url.toString());
@@ -39,7 +56,16 @@ export default function Page() {
 
     await room.connect(connectionDetailsData.serverUrl, connectionDetailsData.participantToken);
     await room.localParticipant.setMicrophoneEnabled(true);
-  }, [room]);
+  }, [room, selectedRoom, customRoom]);
+
+  const handleJoinRoom = useCallback(() => {
+    setShowRoomSelection(false);
+    connectToRoom();
+  }, [connectToRoom]);
+
+  const handleStartConversation = useCallback(() => {
+    setShowRoomSelection(true);
+  }, []);
 
   useEffect(() => {
     room.on(RoomEvent.MediaDevicesError, onDeviceFailure);
@@ -53,10 +79,136 @@ export default function Page() {
     <main data-lk-theme="default" className="h-full grid content-center bg-[var(--lk-bg)]">
       <RoomContext.Provider value={room}>
         <div className="lk-room-container max-h-[90vh]">
-          <SimpleVoiceAssistant onConnectButtonClicked={onConnectButtonClicked} />
+          {showRoomSelection ? (
+            <RoomSelectionUI 
+              availableRooms={availableRooms}
+              selectedRoom={selectedRoom}
+              setSelectedRoom={setSelectedRoom}
+              customRoom={customRoom}
+              setCustomRoom={setCustomRoom}
+              onJoinRoom={handleJoinRoom}
+              isLoading={isLoading}
+              onRefresh={fetchAvailableRooms}
+            />
+          ) : (
+            <SimpleVoiceAssistant 
+              onConnectButtonClicked={handleStartConversation} 
+            />
+          )}
         </div>
       </RoomContext.Provider>
     </main>
+  );
+}
+
+function RoomSelectionUI({
+  availableRooms,
+  selectedRoom,
+  setSelectedRoom,
+  customRoom,
+  setCustomRoom,
+  onJoinRoom,
+  isLoading,
+  onRefresh
+}: {
+  availableRooms: RoomInfo[];
+  selectedRoom: string;
+  setSelectedRoom: (room: string) => void;
+  customRoom: string;
+  setCustomRoom: (room: string) => void;
+  onJoinRoom: () => void;
+  isLoading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-md mx-auto bg-white rounded-lg p-6 shadow-md"
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">Join a Room</h2>
+        <button 
+          onClick={onRefresh}
+          className="text-blue-500 text-sm"
+          disabled={isLoading}
+        >
+          {isLoading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
+      
+      {isLoading ? (
+        <div className="py-4 text-center">Loading available rooms...</div>
+      ) : (
+        <>
+          {availableRooms.length > 0 ? (
+            <>
+              <p className="mb-2 text-sm">Select an existing room:</p>
+              <div className="mb-4 space-y-2 max-h-60 overflow-y-auto">
+                {availableRooms.map((room) => (
+                  <div key={room.name} className="flex items-center p-2 border rounded hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      id={room.name}
+                      name="roomSelection"
+                      value={room.name}
+                      checked={selectedRoom === room.name}
+                      onChange={() => {
+                        setSelectedRoom(room.name);
+                        setCustomRoom("");
+                      }}
+                      className="mr-3"
+                    />
+                    <label htmlFor={room.name} className="flex-1 cursor-pointer">
+                      <div className="font-medium">{room.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''}
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="mb-4 text-sm text-gray-500">No active rooms available. Create a new one below.</p>
+          )}
+          
+          <div className="mb-4">
+            <p className="mb-2 text-sm">Or create/join a custom room:</p>
+            <input
+              type="text"
+              value={customRoom}
+              onChange={(e) => {
+                setCustomRoom(e.target.value);
+                setSelectedRoom("");
+              }}
+              placeholder="Enter room name"
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </>
+      )}
+      
+      <div className="flex justify-between">
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onJoinRoom}
+          disabled={isLoading || (!selectedRoom && !customRoom)}
+          className={`px-4 py-2 text-white rounded-md ${
+            isLoading || (!selectedRoom && !customRoom)
+              ? "bg-blue-300 cursor-not-allowed"
+              : "bg-blue-500 hover:bg-blue-600"
+          }`}
+        >
+          Join Room
+        </button>
+      </div>
+    </motion.div>
   );
 }
 

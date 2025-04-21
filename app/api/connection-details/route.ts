@@ -1,4 +1,4 @@
-import { AccessToken, AccessTokenOptions, VideoGrant } from "livekit-server-sdk";
+import { AccessToken, AccessTokenOptions, RoomServiceClient, VideoGrant } from "livekit-server-sdk";
 import { NextResponse } from "next/server";
 
 // NOTE: you are expected to define the following environment variables in `.env.local`:
@@ -16,7 +16,17 @@ export type ConnectionDetails = {
   participantToken: string;
 };
 
-export async function GET() {
+export type RoomInfo = {
+  name: string;
+  numParticipants: number;
+  creationTime: number;
+};
+
+export type RoomList = {
+  rooms: RoomInfo[];
+};
+
+export async function GET(request: Request) {
   try {
     if (LIVEKIT_URL === undefined) {
       throw new Error("LIVEKIT_URL is not defined");
@@ -28,9 +38,54 @@ export async function GET() {
       throw new Error("LIVEKIT_API_SECRET is not defined");
     }
 
+    const { searchParams } = new URL(request.url);
+    const roomParam = searchParams.get('room');
+    
+    // Initialize the LiveKit Room Service client
+    const roomClient = new RoomServiceClient(LIVEKIT_URL, API_KEY, API_SECRET);
+    
+    // If list=true is provided, return available rooms using LiveKit's API
+    if (searchParams.get('list') === 'true') {
+      const roomsResponse = await roomClient.listRooms();
+      
+      const roomsData: RoomList = {
+        rooms: roomsResponse.map((room: any) => ({
+          name: room.name,
+          numParticipants: room.numParticipants,
+          creationTime: Number(room.creationTime)
+        }))
+      };
+      
+      const headers = new Headers({
+        "Cache-Control": "no-store",
+      });
+      return NextResponse.json(roomsData, { headers });
+    }
+
     // Generate participant token
     const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
-    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+    
+    // Use provided room or generate random room name
+    const roomName = roomParam || `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+    
+    // Check if the room exists, if not, create it
+    try {
+      // Try to find the room in the list of rooms
+      const rooms = await roomClient.listRooms();
+      const roomExists = rooms.some((room: any) => room.name === roomName);
+      
+      // If room doesn't exist, create it
+      if (!roomExists) {
+        await roomClient.createRoom({
+          name: roomName,
+          emptyTimeout: 10 * 60, // 10 minutes
+          maxParticipants: 20
+        });
+      }
+    } catch (error) {
+      console.error("Error checking/creating room:", error);
+    }
+    
     const participantToken = await createParticipantToken(
       { identity: participantIdentity },
       roomName

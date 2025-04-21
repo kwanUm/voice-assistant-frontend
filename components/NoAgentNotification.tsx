@@ -9,7 +9,7 @@ interface NoAgentNotificationProps extends React.PropsWithChildren<object> {
  * Renders some user info when no agent connects to the room after a certain time.
  */
 export function NoAgentNotification(props: NoAgentNotificationProps) {
-  const timeToWaitMs = 10_000;
+  const timeToWaitMs = 30_000;
   const timeoutRef = useRef<number | null>(null);
   const [showNotification, setShowNotification] = useState(false);
   const agentHasConnected = useRef(false);
