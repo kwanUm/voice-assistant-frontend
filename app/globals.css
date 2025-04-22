@@ -5,6 +5,14 @@
 :root {
   --lk-va-bar-width: 72px;
   --lk-control-bar-height: unset;
+  --lk-room-selection-bg: #121214;
+  --lk-room-selection-text: #ffffff;
+  --lk-room-selection-border: #31100c;
+  --lk-room-selection-hover: #1e1e24;
+  --lk-room-selection-button-primary: #31100c;
+  --lk-room-selection-button-primary-hover: #6b221a;
+  --lk-room-selection-button-secondary: #282830;
+  --lk-room-selection-button-secondary-hover: #3a3a44;
 }
 
 .agent-visualizer > .lk-audio-bar {
@@ -17,4 +25,32 @@
 
 .lk-disconnect-button {
   @apply h-[36px] hover:bg-[#6b221a] hover:text-[white] bg-[#31100c] border-[#6b221a];
+}
+
+/* Room Selection UI Styles */
+.room-selection-container {
+  @apply bg-[var(--lk-room-selection-bg)] text-[var(--lk-room-selection-text)] border-[var(--lk-room-selection-border)];
+}
+
+.room-selection-refresh {
+  @apply text-[var(--lk-room-selection-text)] opacity-80 hover:opacity-100;
+}
+
+.room-selection-item {
+  @apply border-[var(--lk-room-selection-border)] hover:bg-[var(--lk-room-selection-hover)];
+}
+
+.room-selection-input {
+  @apply bg-[var(--lk-room-selection-bg)] border-[var(--lk-room-selection-border)] 
+         text-[var(--lk-room-selection-text)] focus:ring-[var(--lk-room-selection-button-primary-hover)];
+}
+
+.room-selection-button-primary {
+  @apply bg-[var(--lk-room-selection-button-primary)] hover:bg-[var(--lk-room-selection-button-primary-hover)] 
+         text-[var(--lk-room-selection-text)];
+}
+
+.room-selection-button-secondary {
+  @apply bg-[var(--lk-room-selection-button-secondary)] hover:bg-[var(--lk-room-selection-button-secondary-hover)] 
+         text-[var(--lk-room-selection-text)];
 }

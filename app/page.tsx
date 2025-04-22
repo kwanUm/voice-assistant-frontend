@@ -124,13 +124,13 @@ function RoomSelectionUI({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full max-w-md mx-auto bg-white rounded-lg p-6 shadow-md"
+      className="w-full max-w-md mx-auto rounded-lg p-6 shadow-md room-selection-container border"
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Join a Room</h2>
         <button 
           onClick={onRefresh}
-          className="text-blue-500 text-sm"
+          className="text-sm room-selection-refresh"
           disabled={isLoading}
         >
           {isLoading ? "Loading..." : "Refresh"}
@@ -146,22 +146,26 @@ function RoomSelectionUI({
               <p className="mb-2 text-sm">Select an existing room:</p>
               <div className="mb-4 space-y-2 max-h-60 overflow-y-auto">
                 {availableRooms.map((room) => (
-                  <div key={room.name} className="flex items-center p-2 border rounded hover:bg-gray-50">
+                  <div 
+                    key={room.name} 
+                    className="flex items-center p-2 border rounded room-selection-item cursor-pointer"
+                    onClick={() => {
+                      setSelectedRoom(room.name);
+                      setCustomRoom("");
+                    }}
+                  >
                     <input
                       type="radio"
                       id={room.name}
                       name="roomSelection"
                       value={room.name}
                       checked={selectedRoom === room.name}
-                      onChange={() => {
-                        setSelectedRoom(room.name);
-                        setCustomRoom("");
-                      }}
+                      onChange={() => {}}
                       className="mr-3"
                     />
                     <label htmlFor={room.name} className="flex-1 cursor-pointer">
                       <div className="font-medium">{room.name}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs opacity-70">
                         {room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''}
                       </div>
                     </label>
@@ -170,7 +174,7 @@ function RoomSelectionUI({
               </div>
             </>
           ) : (
-            <p className="mb-4 text-sm text-gray-500">No active rooms available. Create a new one below.</p>
+            <p className="mb-4 text-sm opacity-70">No active rooms available. Create a new one below.</p>
           )}
           
           <div className="mb-4">
@@ -183,7 +187,7 @@ function RoomSelectionUI({
                 setSelectedRoom("");
               }}
               placeholder="Enter room name"
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 room-selection-input"
             />
           </div>
         </>
@@ -192,18 +196,18 @@ function RoomSelectionUI({
       <div className="flex justify-between">
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+          className="px-4 py-2 rounded-md room-selection-button-secondary"
         >
           Cancel
         </button>
         <button
           onClick={onJoinRoom}
           disabled={isLoading || (!selectedRoom && !customRoom)}
-          className={`px-4 py-2 text-white rounded-md ${
+          className={`px-4 py-2 rounded-md ${
             isLoading || (!selectedRoom && !customRoom)
-              ? "bg-blue-300 cursor-not-allowed"
-              : "bg-blue-500 hover:bg-blue-600"
-          }`}
+              ? "opacity-50 cursor-not-allowed"
+              : ""
+          } room-selection-button-primary`}
         >
           Join Room
         </button>
